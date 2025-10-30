@@ -1,0 +1,4 @@
+make build
+cd build
+cmake .. -DCMAKE_CXX_COMPILER=/opt/rocm-6.4.0/bin/hipcc -DCMAKE_C_COMPILER=/opt/rocm-6.4.0/bin/hipcc -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+make -j

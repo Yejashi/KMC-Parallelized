@@ -25,6 +25,9 @@ include_directories(
     3rd_party/cloudflare
 )
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     add_compile_options(-march=armv8-a)
 else()
@@ -64,11 +67,29 @@ file(GLOB KMC_TOOLS_SRC
     ${KMC_TOOLS_DIR}/*.cpp
 )
 
+set(RADULS_SOURCES "")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+    list(APPEND RADULS_SOURCES ${KMC_MAIN_DIR}/raduls_neon.cpp)
+else()
+    list(APPEND RADULS_SOURCES
+        ${KMC_MAIN_DIR}/raduls_sse2.cpp
+        ${KMC_MAIN_DIR}/raduls_sse41.cpp
+        ${KMC_MAIN_DIR}/raduls_avx.cpp
+        ${KMC_MAIN_DIR}/raduls_avx2.cpp
+    )
+endif()
+
+set_source_files_properties(${KMC_MAIN_DIR}/raduls_sse2.cpp PROPERTIES COMPILE_FLAGS "-msse2")
+set_source_files_properties(${KMC_MAIN_DIR}/raduls_sse41.cpp PROPERTIES COMPILE_FLAGS "-msse4.1")
+set_source_files_properties(${KMC_MAIN_DIR}/raduls_avx.cpp PROPERTIES COMPILE_FLAGS "-mavx")
+set_source_files_properties(${KMC_MAIN_DIR}/raduls_avx2.cpp PROPERTIES COMPILE_FLAGS "-mavx2")
+
 add_subdirectory(3rd_party/cloudflare)
 
-add_library(kmc_core STATIC ${KMC_CORE_SRC} ${KMC_API_SRC})
+add_library(kmc_core STATIC ${KMC_CORE_SRC} ${KMC_API_SRC} ${RADULS_SOURCES})
 target_include_directories(kmc_core PUBLIC ${OUT_INCLUDE_DIR})
 target_link_libraries(kmc_core PRIVATE z)
+target_link_libraries(kmc_core PRIVATE Threads::Threads)
 
 if(ENABLE_CALIPER)
     target_link_libraries(kmc_core PRIVATE caliper)
@@ -92,4 +113,3 @@ target_link_libraries(kmc_tools PRIVATE kmc_core z)
 set_target_properties(kmc kmc_dump kmc_tools PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${OUT_BIN_DIR}
 )
-
